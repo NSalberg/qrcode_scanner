@@ -1,4 +1,4 @@
-class xml_builder:
+class Xml_builder:
     def __init__(self, file: str):
         self.tag_stack = []
         self.state = "tag"
@@ -18,6 +18,12 @@ class xml_builder:
         else:
             print(f"error: invalid build state for add_tag: {self.state}")
 
+    def add_attribute(self, attribute: str, data: str):
+        if self.state == "attribute":
+            self.f.write(f" {attribute}=\"{data}\"")
+        else:
+            print(f"error: invalid build state for add_atrribute: {self.state}")
+
     def close_tag(self):
         if self.state == "attribute":
             self.f.write("/> \n")
@@ -25,17 +31,8 @@ class xml_builder:
             self.state = "tag"
         elif self.state == "tag":
             self.f.write(f"</{self.tag_stack.pop()}> \n")
-
-    def add_attribute(self, attribute: str, data: str):
-        if self.state == "attribute":
-            self.f.write(f" {attribute}=\"{data}\"")
-        else:
-            print(f"error: invalid build state for add_atrribute: {self.state}")
-
         
-    def finish(self):
-        print(self.tag_stack)
+    def close_all(self):
         while self.tag_stack:
-            print(self.tag_stack[-1])
             self.close_tag()
 

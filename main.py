@@ -233,7 +233,7 @@ class QRDecoder:
             case [0, 0, 0, 0]:
                 return "End of Message"
 
-    def read_format(self, qr_matrix: npt.NDArray[np.bool_]) -> npt.NDArray[np.np.bool_]:
+    def read_format(self, qr_matrix: npt.NDArray[np.bool_]) -> npt.NDArray[np.bool_]:
         s1: npt.NDArray[np.bool_] = qr_matrix[:6, 8]
         s2: npt.NDArray[np.bool_] = qr_matrix[7:9, 8]
         s3: npt.NDArray[np.bool_] = qr_matrix[14:, 8]
@@ -459,7 +459,7 @@ def detect_qr_codes():
 
 
 if __name__ == "__main__":
-    image_path = "bigtest.gif"
+    image_path = "test.gif"
     image = iio.v3.imread(image_path)
 
     dims = len(image[0])

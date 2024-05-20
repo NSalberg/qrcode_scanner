@@ -1,4 +1,4 @@
-from . import Xml_builder
+from scanner.vis.xmlb import Xml_builder
 
 class Visualizer():
     def __init__(self, outfile: str, width: int, height: int):
@@ -33,7 +33,18 @@ class Visualizer():
         self.x.add_attribute("x2", str(x2))
         self.x.add_attribute("y2", str(y2))
         self.x.add_attribute("stroke", color)
-        self.x.add_attribute("stroke-width", width)
+        self.x.add_attribute("stroke-width", str(width))
         self.x.close_tag()
+    
+    def draw_text(self, x: float, y: float, text: str, color: str, size: float, font_weight: str = ""):
+        self.x.add_tag("text")
+        self.x.add_attribute("x", str(x))
+        self.x.add_attribute("y", str(y))
+        self.x.add_attribute("fill", color)
+        self.x.add_attribute("font-size", str(size))
+        self.x.add_attribute("font-weight", font_weight)
+        self.x.add_text(text)
+        self.x.close_tag()
+
 
 

@@ -24,6 +24,11 @@ class Xml_builder:
         else:
             print(f"error: invalid build state for add_atrribute: {self.state}")
 
+    def add_text(self, text: str):
+        if self.state == "attribute":
+            self.f.write(f"> {text}")
+            self.state = "tag"
+
     def close_tag(self):
         if self.state == "attribute":
             self.f.write("/> \n")

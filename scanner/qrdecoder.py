@@ -51,32 +51,36 @@ class QRDecoder:
             # the standare suggests that we change our sample grid dependent upon the mini finder patterns but we ignore that for now
             x_spacing = self.get_avg_timing_width(horizontal_scan_encodings, x_spacing, top_left_center)
             y_spacing = self.get_avg_timing_height(vertical_scan_encodings, x_spacing, top_left_center)
-            print("x, y spacing: ", x_spacing, y_spacing)
             qr_matrix = self.create_QR_matrix(gray_image, top_left_center, x_spacing, y_spacing, version)
 
         # identify mask function
-        format = self.read_format(qr_matrix)
         finder_mask = get_finder_mask(version)
-        #vis_finder_mask(finder_mask, v)
+
+        format = self.read_format(qr_matrix)
         mask = format[2:5]
         mask_function = get_mask_function(mask.tolist())
 
         # print masked values
+        top_left_x = top_left_center.cx - (top_left_center.width/7 * 3)
+        top_left_y = top_left_center.cy - (top_left_center.height / 7 * 3)
+
+        #apply and draw masked qr_code 
         for y in range(len(qr_matrix)):
-            for x in range(len(qr_matrix.T)):
+            for x in range(len(qr_matrix)):
                 if finder_mask[x, y] == False and mask_function(x, y):
                     qr_matrix[x, y] = not qr_matrix[x, y]
                 c = "yellow" if qr_matrix[x, y] else "purple"
-                self.v.draw_circle(x * x_spacing + top_left_center.cx - (top_left_center.width/7 * 3), y * y_spacing + top_left_center.cy - (top_left_center.height/7 * 3), r=1, color=c)
+                self.v.draw_circle(x * x_spacing + top_left_x, y * y_spacing + top_left_y, r=1, color=c)
 
         # walk qrcode
         walker = QRWalker(finder_mask)
-        
+
+        #print walk
         for i, (x,y) in enumerate(walker):
-            self.v.draw_text(x * x_spacing + top_left_center.cx - (top_left_center.width/7 * 3), y * y_spacing + top_left_center.cy - (top_left_center.height/7 * 3), str(i), "blue", 5)
+            self.v.draw_text(x * x_spacing + top_left_x, y * y_spacing + top_left_y, str(i), "blue", 5)
 
         data_bits = [qr_matrix[x,y] for x,y in walker]
-        self.parse_data(data_bits, version)
+        return self.parse_data(data_bits, version)
 
     # TODO: change to incorportate version info
     def get_avg_timing_width(self, encodings: list[list[int]], X: float, top_left: Rect):
@@ -124,6 +128,7 @@ class QRDecoder:
                     num_bits_in_len_field = 12
                 else:
                     num_bits_in_len_field = 14
+                raise Exception
             case "Alphanumeric":
                 if version <= 9:
                     num_bits_in_len_field = 9
@@ -131,6 +136,7 @@ class QRDecoder:
                     num_bits_in_len_field = 11
                 else:
                     num_bits_in_len_field = 13
+                raise Exception
             case "Byte":
                 if version <= 9:
                     num_bits_in_len_field = 8
@@ -145,20 +151,22 @@ class QRDecoder:
                     num_bits_in_len_field = 16
                 else:
                     num_bits_in_len_field = 16
+                raise Exception
+
 
         bin_string = "".join(
             ["1" if bit else "0" for bit in data_bits[4 : 4 + num_bits_in_len_field]]
         )
         num_characters = int(bin_string, 2)
-        print(num_bits_in_len_field)
-        print(num_characters)
+        print("num_bits in len field: ",num_bits_in_len_field)
+        print("num characters: ", num_characters)
 
         word = ""
         byte_size = 8
-        for i in range(num_characters + 1):
+        for i in range(num_characters):
             offset = i * byte_size
-            start = 4 + offset
-            end = 4 + num_bits_in_len_field + offset
+            start = 4 + num_bits_in_len_field + offset
+            end = 4 + num_bits_in_len_field + byte_size + offset
             byte = "".join("1" if bit else "0" for bit in data_bits[start:end])
             word += chr(int(byte, 2))
             print(byte, chr(int(byte, 2)))

@@ -40,7 +40,7 @@ if __name__ == "__main__":
 
 
     decoder = QRDecoder(v)
-    decoder.decode_image(image)
+    print(decoder.decode_image(image))
 
     del v
 
@@ -53,5 +53,5 @@ if __name__ == "__main__":
     v.add_image(image_path)
 
     decoder = QRDecoder(v)
-    decoder.decode_image(image)
+    print(decoder.decode_image(image))
     del v

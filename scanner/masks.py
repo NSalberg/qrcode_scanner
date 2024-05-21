@@ -37,7 +37,8 @@ def get_finder_mask(version: int) -> npt.NDArray[np.bool_]:
             coords = get_alignment_coordinates(version)
             for i in coords:
                 for j in coords:
-                    print(i-2,i+3, j-2, j+3)
+                    if i == 6 or j == 6:
+                        continue
                     mask[i-2:i+3,j-2:j+3] = True
 
         case _:

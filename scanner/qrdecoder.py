@@ -10,6 +10,8 @@ import numpy as np
 import numpy.typing as npt
 from math import isclose
 
+Array2D = npt.NDArray[np.float_]
+BinaryMatrix = npt.NDArray[np.bool_]
 
 class Candidate(NamedTuple):
     length: int
@@ -19,68 +21,73 @@ class QRDecoder:
     def __init__(self, visualizer: Visualizer):
         self.v = visualizer
 
-    def decode_image(self, image: npt.NDArray[np.float_]):
-        gray_image: npt.NDArray[np.float_] = np.dot(image, [0.2989, 0.5870, 0.1140])
-        gray_image = np.round(gray_image).astype(np.uint8)
-        gray_image = np.squeeze(gray_image)
+    def decode_image(self, image: Array2D):
+        gray_image = self.convert_to_grayscale(image)
 
-        horizontal_scan_encodings: list[list[int]] = [
-            self.encode_line(row) for row in gray_image
-        ]
-        vertical_scan_encodings: list[list[int]] = [
-            self.encode_line(row) for row in gray_image.T
-        ]
+        horizontal_scan_encodings: list[list[int]] = [self.encode_line(row) for row in gray_image]
+        vertical_scan_encodings: list[list[int]] = [self.encode_line(row) for row in gray_image.T]
 
         centers = self.find_centers(horizontal_scan_encodings, vertical_scan_encodings)
 
-        top_left_center, top_right_center, bottom_left_center = self.localize_centers(
-            centers
-        )
-        d: float = top_right_center.cx - top_left_center.cx
-        x_spacing: float = (top_right_center.width + top_left_center.width) / 14
-        y_spacing: float = x_spacing
-        version: int = self.identify_version(x_spacing, d)
-        print("x, y spacing: ", x_spacing, y_spacing)
-
-        # FOR VERSION 1 COMPUTE X,Y AS AVERAGE OF TIMING WIDTHS
-        if version == 1:
-            x_spacing = self.get_avg_timing_width(horizontal_scan_encodings, x_spacing, top_left_center)
-            y_spacing = self.get_avg_timing_height(vertical_scan_encodings, x_spacing, top_left_center )
-            qr_matrix = self.create_QR_matrix(gray_image, top_left_center, x_spacing, y_spacing, version)
-        else:
-            # the standare suggests that we change our sample grid dependent upon the mini finder patterns but we ignore that for now
-            x_spacing = self.get_avg_timing_width(horizontal_scan_encodings, x_spacing, top_left_center)
-            y_spacing = self.get_avg_timing_height(vertical_scan_encodings, x_spacing, top_left_center)
-            qr_matrix = self.create_QR_matrix(gray_image, top_left_center, x_spacing, y_spacing, version)
-
-        # identify mask function
+        top_left_center, top_right_center, _ = self.localize_centers(centers)
+        x_spacing, y_spacing, version = self.calculate_spacing_and_version(horizontal_scan_encodings, vertical_scan_encodings, top_left_center, top_right_center)
+        
+        qr_matrix = self.create_QR_matrix(gray_image, top_left_center, x_spacing, y_spacing, version)
         finder_mask = get_finder_mask(version)
-
-        format = self.read_format(qr_matrix)
-        mask = format[2:5]
-        mask_function = get_mask_function(mask.tolist())
-
-        # print masked values
-        top_left_x = top_left_center.cx - (top_left_center.width/7 * 3)
-        top_left_y = top_left_center.cy - (top_left_center.height / 7 * 3)
-
-        #apply and draw masked qr_code 
-        for y in range(len(qr_matrix)):
-            for x in range(len(qr_matrix)):
-                if finder_mask[x, y] == False and mask_function(x, y):
-                    qr_matrix[x, y] = not qr_matrix[x, y]
-                c = "yellow" if qr_matrix[x, y] else "purple"
-                self.v.draw_circle(x * x_spacing + top_left_x, y * y_spacing + top_left_y, r=1, color=c)
+        qr_matrix = self.apply_mask(qr_matrix, finder_mask, version)
 
         # walk qrcode
         walker = QRWalker(finder_mask)
 
         #print walk
-        for i, (x,y) in enumerate(walker):
-            self.v.draw_text(x * x_spacing + top_left_x, y * y_spacing + top_left_y, str(i), "blue", 5)
+#        for i, (x,y) in enumerate(walker):
+#            self.v.draw_text(x * x_spacing + top_left_x, y * y_spacing + top_left_y, str(i), "blue", 5)
 
         data_bits = [qr_matrix[x,y] for x,y in walker]
         return self.parse_data(data_bits, version)
+
+    def draw_qr_matrix(self, qr_matrix: Array2D, top_left_center: Rect, x_spacing: float, y_spacing: float) -> None:
+        top_left_x = top_left_center.cx - (top_left_center.width/7 * 3)
+        top_left_y = top_left_center.cy - (top_left_center.height / 7 * 3)
+
+        for x in range(len(qr_matrix)):
+            for y in range(len(qr_matrix)):
+                c = "yellow" if qr_matrix[x, y] else "purple"
+                self.v.draw_circle(x * x_spacing + top_left_x, y * y_spacing + top_left_y, r=1, color=c)
+
+    def apply_mask(self, qr_matrix, finder_mask, version) -> Array2D:
+        format = self.read_format(qr_matrix)
+        mask = format[2:5]
+        mask_function = get_mask_function(mask.tolist())
+
+        for y in range(len(qr_matrix)):
+            for x in range(len(qr_matrix)):
+                if finder_mask[x, y] == False and mask_function(x, y):
+                    qr_matrix[x, y] = not qr_matrix[x, y]
+
+        return qr_matrix
+
+
+    def calculate_spacing_and_version(self, horizontal_scan_encodings, vertical_scan_encodings, top_left_center, top_right_center) -> tuple(float, float, int):
+        x_spacing: float = (top_right_center.width + top_left_center.width) / 14
+        y_spacing: float = x_spacing
+        d: float = top_right_center.cx - top_left_center.cx
+        version: int = self.identify_version(x_spacing, d)
+        print("x, y spacing: ", x_spacing, y_spacing)
+
+        # the standare suggests that we change our sample grid dependent upon the mini finder patterns but we ignore that for now
+        x_spacing = self.get_avg_timing_width(horizontal_scan_encodings, x_spacing, top_left_center)
+        y_spacing = self.get_avg_timing_height(vertical_scan_encodings, x_spacing, top_left_center)
+
+        return x_spacing, y_spacing, version
+
+
+    def convert_to_grayscale(self, image: Array2D) -> Array2D:
+        gray_image = np.dot(image, [0.2989, 0.5870, 0.1140])
+        gray_image = np.round(gray_image).astype(np.uint8)
+        gray_image = np.squeeze(gray_image)
+        return image
+
 
     # TODO: change to incorportate version info
     def get_avg_timing_width(self, encodings: list[list[int]], X: float, top_left: Rect):
@@ -191,13 +198,13 @@ class QRDecoder:
             case [0, 0, 0, 0]:
                 return "End of Message"
 
-    def read_format(self, qr_matrix: npt.NDArray[np.bool_]) -> npt.NDArray[np.bool_]:
-        s1: npt.NDArray[np.bool_] = qr_matrix[:6, 8]
-        s2: npt.NDArray[np.bool_] = qr_matrix[7:9, 8]
-        s3: npt.NDArray[np.bool_] = qr_matrix[14:, 8]
+    def read_format(self, qr_matrix: BinaryMatrix) -> BinaryMatrix:
+        s1: BinaryMatrix = qr_matrix[:6, 8]
+        s2: BinaryMatrix = qr_matrix[7:9, 8]
+        s3: BinaryMatrix = qr_matrix[14:, 8]
         return np.concatenate((s1, s2, s3))
 
-    def create_QR_matrix(self, gray_image: npt.NDArray[np.float_], top_left_center: Rect, x_spacing: float, y_spacing: float, version: int) -> npt.NDArray[np.bool_]:
+    def create_QR_matrix(self, gray_image: Array2D, top_left_center: Rect, x_spacing: float, y_spacing: float, version: int) -> BinaryMatrix:
         top_left_square_y = top_left_center.cy - 3 * y_spacing
         top_left_square_x = top_left_center.cx - 3 * x_spacing
         print("top_left_x, x_spacing: ",top_left_square_x, x_spacing)
@@ -329,7 +336,7 @@ class QRDecoder:
 
         return candidates
 
-    def encode_line(self, iterable: npt.NDArray[np.float_]) -> list[int]:
+    def encode_line(self, iterable: Array2D) -> list[int]:
         last_seen = iterable[0] > 127.5
         seen_count = 1
         encoded_line = []

@@ -1,4 +1,3 @@
-from typing import List, Tuple, NamedTuple
 class Line:
     def __init__(self, x1: float, y1: float, x2: float, y2: float):
         self.x1 = x1
@@ -12,7 +11,7 @@ class Line:
     def __repr__(self):
         return f"Line: {(self.x1, self.y1, self.x2, self.y2)}" 
 
-    def find_intersect(self, other_line) -> Tuple[float, float]:
+    def find_intersect(self, other_line: 'Line') -> tuple[float, float] | tuple[None, None]:
        # Unpack the coordinates of the first line
         x1, y1 = self.x1, self.y1
         x2, y2 = self.x2, self.y2
@@ -27,7 +26,7 @@ class Line:
         
         # Check if lines are parallel
         if m1 == m2:
-            return None  # Parallel lines don't intersect
+            return (None, None)  # Parallel lines don't intersect
         
         # Calculate the intersection point
         if m1 == float('inf'):  # Line 1 is vertical

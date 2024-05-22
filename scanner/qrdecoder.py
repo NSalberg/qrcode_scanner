@@ -23,6 +23,7 @@ class QRDecoder:
 
     def decode_image(self, image: Array2D):
         gray_image = self.convert_to_grayscale(image)
+        print(np.shape(gray_image))
 
         horizontal_scan_encodings: list[list[int]] = [self.encode_line(row) for row in gray_image]
         vertical_scan_encodings: list[list[int]] = [self.encode_line(row) for row in gray_image.T]
@@ -55,7 +56,7 @@ class QRDecoder:
                 c = "yellow" if qr_matrix[x, y] else "purple"
                 self.v.draw_circle(x * x_spacing + top_left_x, y * y_spacing + top_left_y, r=1, color=c)
 
-    def apply_mask(self, qr_matrix, finder_mask, version) -> Array2D:
+    def apply_mask(self, qr_matrix: BinaryMatrix, finder_mask: BinaryMatrix, version: int) -> BinaryMatrix:
         format = self.read_format(qr_matrix)
         mask = format[2:5]
         mask_function = get_mask_function(mask.tolist())
@@ -68,7 +69,7 @@ class QRDecoder:
         return qr_matrix
 
 
-    def calculate_spacing_and_version(self, horizontal_scan_encodings, vertical_scan_encodings, top_left_center, top_right_center) -> tuple(float, float, int):
+    def calculate_spacing_and_version(self, horizontal_scan_encodings: list[list[int]], vertical_scan_encodings: list[list[int]], top_left_center: Rect, top_right_center: Rect) -> tuple[float, float, int]:
         x_spacing: float = (top_right_center.width + top_left_center.width) / 14
         y_spacing: float = x_spacing
         d: float = top_right_center.cx - top_left_center.cx
@@ -83,10 +84,10 @@ class QRDecoder:
 
 
     def convert_to_grayscale(self, image: Array2D) -> Array2D:
-        gray_image = np.dot(image, [0.2989, 0.5870, 0.1140])
+        gray_image: Array2D = np.dot(image, [0.2989, 0.5870, 0.1140])
         gray_image = np.round(gray_image).astype(np.uint8)
         gray_image = np.squeeze(gray_image)
-        return image
+        return gray_image
 
 
     # TODO: change to incorportate version info
@@ -159,6 +160,8 @@ class QRDecoder:
                 else:
                     num_bits_in_len_field = 16
                 raise Exception
+            case _: 
+                raise Exception
 
 
         bin_string = "".join(
@@ -197,6 +200,8 @@ class QRDecoder:
                 return "FNC1 second pos"
             case [0, 0, 0, 0]:
                 return "End of Message"
+            case _: 
+                pass
 
     def read_format(self, qr_matrix: BinaryMatrix) -> BinaryMatrix:
         s1: BinaryMatrix = qr_matrix[:6, 8]
@@ -226,13 +231,15 @@ class QRDecoder:
 
         final_matrix: list[list[bool]] = []
         for vline in vertical_lines:
-            row = []
+            row: list[bool] = []
             for hline in horizontal_lines:
                 xinter, yinter = vline.find_intersect(hline)
+                if xinter == None:
+                    continue
                 color = Counter(
                     sample_around(gray_image, int(xinter), int(yinter))
                 ).most_common(1)[0][0]
-                row.append(color)
+                row.append(bool(color))
                 #c = "yellow" if color else "purple"
             final_matrix.append(row)
         return np.array(final_matrix, dtype=np.bool_)
@@ -299,8 +306,8 @@ class QRDecoder:
         bottom_left_center = centers[0]
         return top_left_center, top_right_center, bottom_left_center
 
-    def find_finder_candidates(self, encodings: list[list[int]], is_vert: bool):
-        finder_candidates = []
+    def find_finder_candidates(self, encodings: list[list[int]], is_vert: bool) -> list[Rect]:
+        finder_candidates: list[Rect] = []
         for i, encoding in enumerate(encodings):
             candidates = self.find_candidates(encoding)
             if candidates:
@@ -318,9 +325,9 @@ class QRDecoder:
     def find_candidates(self, encodings: list[int]) -> list[Candidate]:
         if len(encodings) <= 5:
             return []
-        candidates = []
+        candidates: list[Candidate] = []
         start = encodings[1] * -1
-        tol = .1
+        tol = .2
         for i in range(len(encodings) - 5):
             length = encodings[i]
             start += length
@@ -339,7 +346,7 @@ class QRDecoder:
     def encode_line(self, iterable: Array2D) -> list[int]:
         last_seen = iterable[0] > 127.5
         seen_count = 1
-        encoded_line = []
+        encoded_line: list[int] = []
 
         for value in iterable[1:]:
             current = value > 127.5

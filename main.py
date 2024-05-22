@@ -32,7 +32,7 @@ class QRReader:
 
 if __name__ == "__main__":
     image_path = "test.gif"
-    image = iio.v3.imread(image_path)
+    image = iio.v3.imread(image_path).squeeze()
 
     dims = len(image[0])
     v = Visualizer("test2.svg", width=dims, height=dims)

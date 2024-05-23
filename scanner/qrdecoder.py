@@ -23,7 +23,6 @@ class QRDecoder:
 
     def decode_image(self, image: Array2D):
         gray_image = self.convert_to_grayscale(image)
-        print(np.shape(gray_image))
 
         horizontal_scan_encodings: list[list[int]] = [self.encode_line(row) for row in gray_image]
         vertical_scan_encodings: list[list[int]] = [self.encode_line(row) for row in gray_image.T]
@@ -179,7 +178,7 @@ class QRDecoder:
             end = 4 + num_bits_in_len_field + byte_size + offset
             byte = "".join("1" if bit else "0" for bit in data_bits[start:end])
             word += chr(int(byte, 2))
-            print(byte, chr(int(byte, 2)))
+            #print(byte, chr(int(byte, 2)))
         return word
 
     def identify_encoding(self, encoding_bits: list[bool]):
@@ -266,22 +265,22 @@ class QRDecoder:
                 if rect_centers_approx_equal(candidate_vert, candidate_horiz):
                     rect = avg_rects([candidate_vert, candidate_horiz])
                     self.add_rect_to_bucket(buckets, rect)
-
         centers: list[Rect] = []
         for bucket in buckets:
             center = avg_rects(bucket)
-            centers.append(center)
+            centers.append(center) 
             self.v.draw_circle(center.cx, center.cy, 1, "yellow")
+
         if len(centers) != 3:
-            print("number of centers is not 3")
-            exit()
+            print(f"number of centers:{len(centers)} is not 3")
+            raise RuntimeError
         return centers
 
     def add_rect_to_bucket(self, buckets: list[list[Rect]], rect: Rect):
         added = False
         for bucket in buckets:
             for bucket_rect in bucket:
-                if rect_centers_approx_equal(bucket_rect, rect, 10):
+                if rect_centers_approx_equal(bucket_rect, rect, .1):
                     bucket.append(rect)
                     added = True
                     break

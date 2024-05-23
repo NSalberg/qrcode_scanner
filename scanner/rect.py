@@ -8,10 +8,9 @@ class Rect(NamedTuple):
     width: float
     height: float
 
-def rect_centers_approx_equal(rect0: Rect, rect2: Rect, tolerance: float = 1) -> bool:
-
-    return isclose(rect0.cx, rect2.cx, abs_tol=tolerance) and isclose(
-        rect0.cy, rect2.cy, abs_tol=tolerance
+def rect_centers_approx_equal(rect0: Rect, rect2: Rect, tolerance: float = .05) -> bool:
+    return isclose(rect0.cx, rect2.cx, rel_tol=tolerance) and isclose(
+        rect0.cy, rect2.cy, rel_tol=tolerance
     )
 
 def avg_rects(rects: list[Rect]) -> Rect:

@@ -49,7 +49,8 @@ if __name__ == "__main__":
             dims = len(image[0])
             v = Visualizer(f"test{i}.svg", width=dims, height=dims)
             v.add_image(image_path)
-            print(f"{reader.read_qr_image(image, v)} \n")
+            qr_data = reader.read_qr_image(image,v)
+            print(f"{qr_data} \n")
             del v
 
 

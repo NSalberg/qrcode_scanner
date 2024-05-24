@@ -124,6 +124,7 @@ class QRDecoder:
     
     def parse_data(self, data_bits: list[bool], version: int) -> str:
         enc_bits = data_bits[:4]
+        print(enc_bits)
         encoding = self.identify_encoding(enc_bits)
 
         num_bits_in_len_field = 0
@@ -160,6 +161,7 @@ class QRDecoder:
                     num_bits_in_len_field = 16
                 raise Exception
             case _: 
+                print(encoding)
                 raise Exception
 
 
